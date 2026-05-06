@@ -1854,3 +1854,87 @@ body {
 .code-stats-chart { flex: 1; min-width: 300px; }
 
 .code-stats-table-section { margin-top: 24px; }
+
+/* ── Code Map page ───────────────────────────────────────────────────────── */
+.codemap-page { max-width: 1200px; }
+.codemap-page h2 { font-size: 22px; margin-bottom: 4px; }
+
+.codemap-filters {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.codemap-filters select {
+  padding: 7px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+}
+
+.codemap-flow-header {
+  display: grid;
+  grid-template-columns: 110px 180px 150px 200px 65px 100px 1fr;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1a1a2e;
+  color: white;
+  border-radius: 8px 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.codemap-flow-body {
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: white;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+}
+
+.codemap-row {
+  display: grid;
+  grid-template-columns: 110px 180px 150px 200px 65px 100px 1fr;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+  font-size: 13px;
+}
+
+.codemap-row:last-child { border-bottom: none; }
+.codemap-row:hover { background: #f8f9ff; }
+
+.codemap-ui { font-weight: 600; color: #1a1a2e; }
+.codemap-action { color: #555; }
+.codemap-controller { font-size: 11px; color: #7b1fa2; font-weight: 600; }
+.codemap-endpoint code { font-size: 12px; background: #f5f5f5; padding: 2px 6px; border-radius: 4px; }
+.codemap-method { font-weight: 700; font-size: 12px; }
+.codemap-sql { font-weight: 600; font-size: 12px; }
+
+.codemap-tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.codemap-table-pill {
+  font-size: 10px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.codemap-summary {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #888;
+}
