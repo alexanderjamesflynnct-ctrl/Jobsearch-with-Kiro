@@ -482,23 +482,33 @@ app.MapGet("/stats/applied-today", () =>
     tzCmd.CommandText = "SELECT value FROM settings WHERE key = 'timezone'";
     var tzId = tzCmd.ExecuteScalar()?.ToString() ?? "America/New_York";
 
-    // Get today's date in the user's timezone
-    string today;
+    // Calculate start/end of today in user's timezone, converted to UTC for comparison
+    string todayStart, todayEnd;
     try
     {
-        var tz = TimeZoneInfo.FindSystemTimeZoneById(tzId);
-        today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).ToString("yyyy-MM-dd");
+        var tz  = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var startLocal = now.Date;                          // midnight today in user's tz
+        var endLocal   = startLocal.AddDays(1);             // midnight tomorrow in user's tz
+        var startUtc   = TimeZoneInfo.ConvertTimeToUtc(startLocal, tz);
+        var endUtc     = TimeZoneInfo.ConvertTimeToUtc(endLocal, tz);
+        todayStart = startUtc.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        todayEnd   = endUtc.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
     catch
     {
-        today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        // Fallback to UTC day
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        todayStart = today + "T00:00:00Z";
+        todayEnd   = today + "T23:59:59Z";
     }
 
     using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT COUNT(DISTINCT kanban_id) FROM kanban_history WHERE to_status = 'Applied' AND changed_at LIKE $today || '%'";
-    cmd.Parameters.AddWithValue("$today", today);
+    cmd.CommandText = "SELECT COUNT(DISTINCT kanban_id) FROM kanban_history WHERE to_status = 'Applied' AND changed_at >= $start AND changed_at < $end";
+    cmd.Parameters.AddWithValue("$start", todayStart);
+    cmd.Parameters.AddWithValue("$end",   todayEnd);
     var count = Convert.ToInt32(cmd.ExecuteScalar());
-    return Results.Ok(new { count, today });
+    return Results.Ok(new { count, todayStart, todayEnd });
 });
 
 // ── GET /stats/outcomes ───────────────────────────────────────────────────────
