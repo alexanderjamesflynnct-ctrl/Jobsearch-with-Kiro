@@ -8,6 +8,7 @@ import AddJob from './pages/AddJob'
 import Settings from './pages/Settings'
 import PromptsLog from './pages/PromptsLog'
 import CodeStats from './pages/CodeStats'
+import CodeMap from './pages/CodeMap'
 import './App.css'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
         <button className={page === 'prompts'   ? 'nav-link active' : 'nav-link'} onClick={() => setPage('prompts')}>Prompts Log</button>
         <button className={page === 'settings'  ? 'nav-link active' : 'nav-link'} onClick={() => setPage('settings')}>Settings</button>
         <button className={page === 'codestats' ? 'nav-link active' : 'nav-link'} onClick={() => setPage('codestats')}>Code Stats</button>
+        <button className={page === 'codemap'  ? 'nav-link active' : 'nav-link'} onClick={() => setPage('codemap')}>Code Map</button>
         <label className="anon-toggle nav-anon">
           <input type="checkbox" checked={anonymize} onChange={e => setAnonymize(e.target.checked)} />
           <span>Anonymize</span>
@@ -42,6 +44,7 @@ export default function App() {
       {page === 'prompts' && <PromptsLog />}
       {page === 'settings' && <Settings />}
       {page === 'codestats' && <CodeStats />}
+      {page === 'codemap'  && <CodeMap />}
     </div>
   )
 }
