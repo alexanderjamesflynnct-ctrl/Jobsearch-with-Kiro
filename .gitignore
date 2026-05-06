@@ -1,0 +1,8 @@
+node_modules/
+webapp/client/node_modules/
+webapp/api_cs/bin/
+webapp/api_cs/obj/
+SearchCode/.env
+__pycache__/
+*.pyc
+.env
