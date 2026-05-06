@@ -1,0 +1,15 @@
+C:\Users\lex\source\kiro\jobsearch\launcher\bin\Debug\net10.0\AppLauncher.exe
+C:\Users\lex\source\kiro\jobsearch\launcher\bin\Debug\net10.0\AppLauncher.deps.json
+C:\Users\lex\source\kiro\jobsearch\launcher\bin\Debug\net10.0\AppLauncher.runtimeconfig.json
+C:\Users\lex\source\kiro\jobsearch\launcher\bin\Debug\net10.0\AppLauncher.dll
+C:\Users\lex\source\kiro\jobsearch\launcher\bin\Debug\net10.0\AppLauncher.pdb
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.AssemblyInfoInputs.cache
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.AssemblyInfo.cs
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.csproj.CoreCompileInputs.cache
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.sourcelink.json
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.dll
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\refint\AppLauncher.dll
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.pdb
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\AppLauncher.genruntimeconfig.cache
+C:\Users\lex\source\kiro\jobsearch\launcher\obj\Debug\net10.0\ref\AppLauncher.dll
