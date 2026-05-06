@@ -7,6 +7,7 @@ import Kanban from './pages/Kanban'
 import AddJob from './pages/AddJob'
 import Settings from './pages/Settings'
 import PromptsLog from './pages/PromptsLog'
+import CodeStats from './pages/CodeStats'
 import './App.css'
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
         <button className={page === 'useful'    ? 'nav-link active' : 'nav-link'} onClick={() => setPage('useful')}>Useful Links</button>
         <button className={page === 'prompts'   ? 'nav-link active' : 'nav-link'} onClick={() => setPage('prompts')}>Prompts Log</button>
         <button className={page === 'settings'  ? 'nav-link active' : 'nav-link'} onClick={() => setPage('settings')}>Settings</button>
+        <button className={page === 'codestats' ? 'nav-link active' : 'nav-link'} onClick={() => setPage('codestats')}>Code Stats</button>
         <label className="anon-toggle nav-anon">
           <input type="checkbox" checked={anonymize} onChange={e => setAnonymize(e.target.checked)} />
           <span>Anonymize</span>
@@ -39,6 +41,7 @@ export default function App() {
       {page === 'useful' && <UsefulLinks />}
       {page === 'prompts' && <PromptsLog />}
       {page === 'settings' && <Settings />}
+      {page === 'codestats' && <CodeStats />}
     </div>
   )
 }

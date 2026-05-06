@@ -1831,3 +1831,26 @@ body {
   margin-top: 8px;
 }
 .settings-input:focus { border-color: #1a73e8; outline: none; }
+
+/* ── Code Stats page ─────────────────────────────────────────────────────── */
+.code-stats-page { max-width: 900px; }
+.code-stats-page h2 { font-size: 22px; margin-bottom: 4px; }
+.code-stats-page h3 { font-size: 15px; margin-bottom: 10px; margin-top: 0; }
+
+.code-stats-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 24px;
+}
+
+.code-stats-charts {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.code-stats-chart { flex: 1; min-width: 300px; }
+
+.code-stats-table-section { margin-top: 24px; }
