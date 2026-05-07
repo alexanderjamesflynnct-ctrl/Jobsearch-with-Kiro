@@ -75,6 +75,15 @@ export default function JobSearch({ anonymize, setAnonymize }) {
     fetchJobs(filters, page)
   }
 
+  const deleteStale = async () => {
+    if (!window.confirm('Delete all jobs in Searched/Found that have never been moved to another lane?')) return
+    const res = await fetch(`${API}/jobs/stale`, { method: 'DELETE' })
+    const data = await res.json()
+    alert(data.message)
+    fetchJobs(filters, page)
+    fetch(`${API}/stats`).then(r => r.json()).then(setStats).catch(() => {})
+  }
+
   const runAdzuna = async () => {
     setRunning(true)
     setRunResult(null)
@@ -103,9 +112,14 @@ export default function JobSearch({ anonymize, setAnonymize }) {
       <header className="app-header">
         <div className="header-row">
           <h1>Job Search Results</h1>
-          <button className="btn-run-adzuna" onClick={() => { setShowRun(true); setRunResult(null) }}>
-            ⟳ Fetch Adzuna Jobs
-          </button>
+          <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+            <button className="btn-clear-stale" onClick={deleteStale}>
+              🗑 Clear Untouched
+            </button>
+            <button className="btn-run-adzuna" onClick={() => { setShowRun(true); setRunResult(null) }}>
+              ⟳ Fetch Adzuna Jobs
+            </button>
+          </div>
         </div>
         {stats && <StatsBar stats={stats} />}
       </header>

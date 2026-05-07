@@ -92,6 +92,13 @@ function Card({ card, onMove, onSave, onDragStart, anonymize }) {
     onSave()
   }
 
+  const deleteCard = async (e) => {
+    e.stopPropagation()
+    if (!window.confirm(`Delete "${card.title}"?`)) return
+    await fetch(`${API}/jobs/${encodeURIComponent(card.job_listing_id)}`, { method: 'DELETE' })
+    onSave()
+  }
+
   const setFailType = async (failType) => {
     await fetch(`${API}/kanban/${card.id}/fail-type`, {
       method: 'PATCH',
@@ -144,17 +151,21 @@ function Card({ card, onMove, onSave, onDragStart, anonymize }) {
               {card.is_active ? '★' : '☆'}
             </button>
           )}
+          {card.status === 'Searched/Found' && (
+            <button
+              className="kanban-delete-btn"
+              onClick={deleteCard}
+              title="Delete this job"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
       {expanded && (
         <div className="kanban-card-body">
           <div className="kanban-card-actions">
-            {card.url && (
-              <a href={card.url} target="_blank" rel="noreferrer" className="kanban-link">
-                View Job →
-              </a>
-            )}
             <button className="kanban-history-btn" onClick={loadHistory}>
               🕐 {showHistory ? 'Hide History' : 'History'}
             </button>

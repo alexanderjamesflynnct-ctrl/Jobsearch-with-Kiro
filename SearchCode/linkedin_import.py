@@ -205,8 +205,14 @@ def _parse_linkedin(soup: BeautifulSoup, url: str) -> dict:
     job["company"] = _text(
         soup.select_one("a[data-tracking-control-name='public_jobs_topcard-org-name']")
         or soup.select_one(".topcard__org-name-link")
-        or soup.select_one('a[href*="/company/"]')
     )
+    # Fallback: find any /company/ link with actual text
+    if not job["company"]:
+        for a in soup.select('a[href*="/company/"]'):
+            t = _text(a)
+            if t:
+                job["company"] = t
+                break
 
     loc_el = (
         soup.select_one(".topcard__flavor--bullet")

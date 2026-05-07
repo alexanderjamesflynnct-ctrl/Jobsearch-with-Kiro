@@ -117,11 +117,40 @@ public static class LinksController
                 return Results.Json(new { message = "Import script failed", processed = 0, output = stdout, errors = stderr }, statusCode: 500);
 
             var processedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            foreach (var (id, _) in pending)
+
+            // Parse output to detect per-link success/failure
+            var outputLines = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var (id, url) in pending)
             {
+                // Check if this URL already existed in job_listings (duplicate)
+                using var dupCheck = conn.CreateCommand();
+                dupCheck.CommandText = "SELECT j.title, k.status FROM job_listings j LEFT JOIN kanban_jobs k ON k.job_listing_id = j.id WHERE j.url LIKE $url LIMIT 1";
+                var cleanUrl = url.Split('?')[0];
+                dupCheck.Parameters.AddWithValue("$url", $"%{cleanUrl}%");
+                using var dupReader = dupCheck.ExecuteReader();
+
+                string? errorMsg = null;
+                if (dupReader.Read())
+                {
+                    var title  = dupReader.IsDBNull(0) ? "" : dupReader.GetString(0);
+                    var status = dupReader.IsDBNull(1) ? "Unknown" : dupReader.GetString(1);
+                    errorMsg = $"Already imported - {status}: {title}";
+                }
+                else
+                {
+                    // Check Python output for failures
+                    var fetchLine = outputLines.FirstOrDefault(l => l.Contains("Fetching") && l.Contains(url.Split('?')[0].Split('/').Last())) ?? "";
+                    var fetchIdx  = Array.IndexOf(outputLines, fetchLine);
+                    var resultLine = fetchIdx >= 0 && fetchIdx + 1 < outputLines.Length ? outputLines[fetchIdx + 1] : "";
+                    if (resultLine.Contains("Skipped") || resultLine.Contains("(no title)"))
+                        errorMsg = resultLine.Trim();
+                }
+                dupReader.Close();
+
                 using var upd = conn.CreateCommand();
-                upd.CommandText = "UPDATE job_links SET processed = 1, processed_at = $at WHERE id = $id";
+                upd.CommandText = "UPDATE job_links SET processed = 1, processed_at = $at, error_message = $err WHERE id = $id";
                 upd.Parameters.AddWithValue("$at", processedAt);
+                upd.Parameters.AddWithValue("$err", errorMsg != null ? (object)errorMsg : DBNull.Value);
                 upd.Parameters.AddWithValue("$id", id);
                 upd.ExecuteNonQuery();
             }

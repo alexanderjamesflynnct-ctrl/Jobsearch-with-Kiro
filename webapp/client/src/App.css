@@ -1938,3 +1938,165 @@ body {
   font-size: 12px;
   color: #888;
 }
+
+.btn-clear-stale {
+  padding: 8px 14px;
+  background: none;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  color: #c62828;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-clear-stale:hover { background: #fdecea; }
+
+/* ── Import link failure styles ──────────────────────────────────────────── */
+.link-row-failed td { background: #fdecea !important; }
+.link-row-failed:hover td { background: #fce4e4 !important; }
+
+.link-fail-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c62828;
+  background: #ffcdd2;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: help;
+}
+
+.link-success-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2e7d32;
+  background: #c8e6c9;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.link-row-duplicate td { background: #fff8e1 !important; }
+.link-row-duplicate:hover td { background: #fff3cd !important; }
+
+.link-dup-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f57f17;
+  background: #fff9c4;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: help;
+}
+
+/* ── Bulk import input ───────────────────────────────────────────────────── */
+.link-input-multi {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: monospace;
+  resize: vertical;
+}
+.link-input-multi:focus { border-color: #1a73e8; outline: none; }
+
+.link-input-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.link-input-hint { font-size: 12px; color: #888; }
+
+/* ── Bookmarklet ─────────────────────────────────────────────────────────── */
+.bookmarklet-section {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.bookmarklet-section h3 { font-size: 14px; margin: 0 0 6px; }
+
+.bookmarklet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.bookmarklet-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #1a73e8;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: grab;
+  user-select: none;
+}
+.bookmarklet-link:hover { background: #1558b0; }
+.bookmarklet-link:active { cursor: grabbing; }
+
+.bookmarklet-hint { font-size: 12px; color: #888; font-style: italic; }
+
+.bookmarklet-instructions {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #555;
+}
+.bookmarklet-instructions summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1a73e8;
+}
+.bookmarklet-instructions ol {
+  margin: 8px 0 0 20px;
+  line-height: 1.8;
+}
+
+.bookmarklet-version {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.kanban-delete-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.kanban-delete-btn:hover { color: #c62828; }
+
+.bookmarklet-instructions ol ul {
+  margin: 4px 0 8px 16px;
+  list-style: disc;
+}
+
+.bookmarklet-instructions code {
+  background: #f5f5f5;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.bookmarklet-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #666;
+  background: #f8f9ff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #1a73e8;
+}
