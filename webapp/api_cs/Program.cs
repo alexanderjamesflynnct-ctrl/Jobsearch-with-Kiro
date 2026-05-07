@@ -49,12 +49,13 @@ using (var initConn = Open())
             description TEXT
         );
         CREATE TABLE IF NOT EXISTS job_links (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            url          TEXT    NOT NULL UNIQUE,
-            source       TEXT    NOT NULL DEFAULT 'unknown',
-            added_at     TEXT    NOT NULL,
-            processed    INTEGER NOT NULL DEFAULT 0,
-            processed_at TEXT
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            url           TEXT    NOT NULL UNIQUE,
+            source        TEXT    NOT NULL DEFAULT 'unknown',
+            added_at      TEXT    NOT NULL,
+            processed     INTEGER NOT NULL DEFAULT 0,
+            processed_at  TEXT,
+            error_message TEXT
         );
         CREATE TABLE IF NOT EXISTS kanban_jobs (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,

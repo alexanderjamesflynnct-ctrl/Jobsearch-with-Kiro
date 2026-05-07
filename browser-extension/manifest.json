@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Job URL Grabber",
+  "version": "1.0",
+  "description": "Copies all open tab URLs to clipboard for job import",
+  "permissions": ["tabs", "clipboardWrite", "offscreen", "notifications"],
+  "action": {
+    "default_title": "Copy All Tab URLs",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

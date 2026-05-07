@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import Bookmarklet from '../components/Bookmarklet'
 
 const API = 'http://localhost:8000'
 
@@ -21,24 +22,37 @@ export default function ImportLinks() {
 
   useEffect(() => { fetchLinks() }, [fetchLinks])
 
-  const addLink = async () => {
-    const url = input.trim()
-    if (!url) return
+  const addLinks = async () => {
+    const urls = input.trim().split('\n').map(l => l.trim()).filter(l => l)
+    if (!urls.length) return
     setError('')
     setStatus('')
-    const res  = await fetch(`${API}/links`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      setError(data.error || 'Failed to add link.')
-    } else {
-      setStatus(data.message)
-      setInput('')
-      fetchLinks()
+
+    let added = 0, skipped = 0, errors = []
+    for (const url of urls) {
+      const res = await fetch(`${API}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        errors.push(`${url.slice(0, 60)}: ${data.error}`)
+      } else if (data.message === 'Link already exists') {
+        skipped++
+      } else {
+        added++
+      }
     }
+
+    const parts = []
+    if (added)   parts.push(`${added} added`)
+    if (skipped) parts.push(`${skipped} already existed`)
+    if (errors.length) parts.push(`${errors.length} failed`)
+    setStatus(parts.join(', '))
+    if (errors.length) setError(errors.join('\n'))
+    setInput('')
+    fetchLinks()
   }
 
   const deleteLink = async (id) => {
@@ -134,15 +148,20 @@ export default function ImportLinks() {
       <h2>Import Job Links</h2>
       <p className="subtitle">Paste LinkedIn, Indeed, Glassdoor or ZipRecruiter job URLs to queue them for import.</p>
 
+      <Bookmarklet />
+
       <div className="link-input-row">
-        <input
-          type="text"
-          placeholder="Paste a LinkedIn, Indeed, Glassdoor or ZipRecruiter job URL..."
+        <textarea
+          className="link-input-multi"
+          placeholder="Paste one or more LinkedIn, Indeed, Glassdoor or ZipRecruiter job URLs (one per line)..."
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addLink()}
+          rows={3}
         />
-        <button className="btn-primary" onClick={addLink}>Add Link</button>
+        <div className="link-input-buttons">
+          <button className="btn-primary" onClick={addLinks}>Add Link(s)</button>
+          <span className="link-input-hint">{input.trim() ? `${input.trim().split('\n').filter(l => l.trim()).length} URL(s)` : ''}</span>
+        </div>
       </div>
 
       {error  && <div className="msg error"><pre>{error}</pre></div>}
@@ -237,23 +256,34 @@ export default function ImportLinks() {
           </div>
           <table className="link-table processed">
             <thead>
-              <tr><th>Source</th><th>URL</th><th>Added</th><th>Processed</th><th></th></tr>
+              <tr><th>Source</th><th>URL</th><th>Added</th><th>Processed</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              {processed.map(link => (
-                <tr key={link.id}>
-                  <td><span className={`badge badge-${link.source}`}>{link.source}</span></td>
-                  <td className="url-cell">
-                    <a href={link.url} target="_blank" rel="noreferrer">{cleanUrl(link.url)}</a>
-                  </td>
-                  <td className="date">{link.added_at?.replace('T',' ').replace('Z','')}</td>
-                  <td className="date">{link.processed_at?.replace('T',' ').replace('Z','')}</td>
-                  <td className="action-cell">
-                    <button className="btn-reset-sm" onClick={() => resetLink(link.id)} title="Reset to pending">↺</button>
-                    <button className="btn-delete"   onClick={() => deleteLink(link.id)}>✕</button>
-                  </td>
-                </tr>
-              ))}
+              {processed.map(link => {
+                const msg = link.error_message || ''
+                const isDuplicate = msg.startsWith('Already imported')
+                const isFailed = msg && !isDuplicate
+                return (
+                  <tr key={link.id} className={isFailed ? 'link-row-failed' : isDuplicate ? 'link-row-duplicate' : ''} title={msg}>
+                    <td><span className={`badge badge-${link.source}`}>{link.source}</span></td>
+                    <td className="url-cell">
+                      <a href={link.url} target="_blank" rel="noreferrer">{cleanUrl(link.url)}</a>
+                    </td>
+                    <td className="date">{link.added_at?.replace('T',' ').replace('Z','')}</td>
+                    <td className="date">{link.processed_at?.replace('T',' ').replace('Z','')}</td>
+                    <td>{isFailed
+                      ? <span className="link-fail-badge" title={msg}>Failed</span>
+                      : isDuplicate
+                      ? <span className="link-dup-badge" title={msg}>Duplicate</span>
+                      : <span className="link-success-badge">OK</span>
+                    }</td>
+                    <td className="action-cell">
+                      <button className="btn-reset-sm" onClick={() => resetLink(link.id)} title="Reset to pending">↺</button>
+                      <button className="btn-delete"   onClick={() => deleteLink(link.id)}>✕</button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </>

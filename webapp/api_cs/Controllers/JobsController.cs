@@ -58,6 +58,26 @@ public static class JobsController
         {
             using var conn = open();
             conn.Open();
+
+            // Delete related kanban notes first
+            using var notesCmd = conn.CreateCommand();
+            notesCmd.CommandText = "DELETE FROM kanban_notes WHERE kanban_id IN (SELECT id FROM kanban_jobs WHERE job_listing_id = $id)";
+            notesCmd.Parameters.AddWithValue("$id", id);
+            notesCmd.ExecuteNonQuery();
+
+            // Delete related kanban history
+            using var histCmd = conn.CreateCommand();
+            histCmd.CommandText = "DELETE FROM kanban_history WHERE kanban_id IN (SELECT id FROM kanban_jobs WHERE job_listing_id = $id)";
+            histCmd.Parameters.AddWithValue("$id", id);
+            histCmd.ExecuteNonQuery();
+
+            // Delete kanban card
+            using var kanbanCmd = conn.CreateCommand();
+            kanbanCmd.CommandText = "DELETE FROM kanban_jobs WHERE job_listing_id = $id";
+            kanbanCmd.Parameters.AddWithValue("$id", id);
+            kanbanCmd.ExecuteNonQuery();
+
+            // Delete the job listing
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DELETE FROM job_listings WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", id);
@@ -187,6 +207,52 @@ public static class JobsController
             using var reader = cmd.ExecuteReader();
             while (reader.Read()) list.Add(reader.GetString(0));
             return Results.Ok(list);
+        });
+
+        // ── DELETE /jobs/stale ────────────────────────────────────────────────────
+        // Deletes all jobs in Searched/Found that have never moved to another lane
+        app.MapDelete("/jobs/stale", () =>
+        {
+            using var conn = open();
+            conn.Open();
+
+            // Find kanban cards in Searched/Found with no history (never moved)
+            using var findCmd = conn.CreateCommand();
+            findCmd.CommandText = """
+                SELECT k.id, k.job_listing_id FROM kanban_jobs k
+                WHERE k.status = 'Searched/Found'
+                  AND k.id NOT IN (SELECT DISTINCT kanban_id FROM kanban_history)
+                """;
+            var stale = new List<(int kanbanId, string jobId)>();
+            using var reader = findCmd.ExecuteReader();
+            while (reader.Read())
+                stale.Add((reader.GetInt32(0), reader.GetString(1)));
+
+            if (stale.Count == 0)
+                return Results.Ok(new { message = "No stale jobs found", deleted = 0 });
+
+            foreach (var (kanbanId, jobId) in stale)
+            {
+                // Delete notes
+                using var n = conn.CreateCommand();
+                n.CommandText = "DELETE FROM kanban_notes WHERE kanban_id = $kid";
+                n.Parameters.AddWithValue("$kid", kanbanId);
+                n.ExecuteNonQuery();
+
+                // Delete kanban card
+                using var k = conn.CreateCommand();
+                k.CommandText = "DELETE FROM kanban_jobs WHERE id = $kid";
+                k.Parameters.AddWithValue("$kid", kanbanId);
+                k.ExecuteNonQuery();
+
+                // Delete job listing
+                using var j = conn.CreateCommand();
+                j.CommandText = "DELETE FROM job_listings WHERE id = $jid";
+                j.Parameters.AddWithValue("$jid", jobId);
+                j.ExecuteNonQuery();
+            }
+
+            return Results.Ok(new { message = $"Deleted {stale.Count} stale job(s)", deleted = stale.Count });
         });
     }
 }
