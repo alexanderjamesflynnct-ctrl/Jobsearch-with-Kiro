@@ -6,8 +6,6 @@ import UsefulLinks from './pages/UsefulLinks'
 import Kanban from './pages/Kanban'
 import AddJob from './pages/AddJob'
 import Settings from './pages/Settings'
-import PromptsLog from './pages/PromptsLog'
-import CodeStats from './pages/CodeStats'
 import CodeMap from './pages/CodeMap'
 import './App.css'
 
@@ -25,10 +23,8 @@ export default function App() {
         <button className={page === 'add'       ? 'nav-link active' : 'nav-link'} onClick={() => setPage('add')}>Add Job</button>
         <button className={page === 'import'    ? 'nav-link active' : 'nav-link'} onClick={() => setPage('import')}>Import Links</button>
         <button className={page === 'useful'    ? 'nav-link active' : 'nav-link'} onClick={() => setPage('useful')}>Useful Links</button>
-        <button className={page === 'prompts'   ? 'nav-link active' : 'nav-link'} onClick={() => setPage('prompts')}>Prompts Log</button>
+        <button className={page === 'developer' ? 'nav-link active' : 'nav-link'} onClick={() => setPage('developer')}>Developer</button>
         <button className={page === 'settings'  ? 'nav-link active' : 'nav-link'} onClick={() => setPage('settings')}>Settings</button>
-        <button className={page === 'codestats' ? 'nav-link active' : 'nav-link'} onClick={() => setPage('codestats')}>Code Stats</button>
-        <button className={page === 'codemap'  ? 'nav-link active' : 'nav-link'} onClick={() => setPage('codemap')}>Code Map</button>
         <label className="anon-toggle nav-anon">
           <input type="checkbox" checked={anonymize} onChange={e => setAnonymize(e.target.checked)} />
           <span>Anonymize</span>
@@ -41,10 +37,8 @@ export default function App() {
       {page === 'add'    && <AddJob />}
       {page === 'import' && <ImportLinks />}
       {page === 'useful' && <UsefulLinks />}
-      {page === 'prompts' && <PromptsLog />}
+      {page === 'developer' && <CodeMap />}
       {page === 'settings' && <Settings />}
-      {page === 'codestats' && <CodeStats />}
-      {page === 'codemap'  && <CodeMap />}
     </div>
   )
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import SwaggerDocs from '../components/SwaggerDocs'
+import PromptsLog from './PromptsLog'
+import CodeStats from './CodeStats'
 
 const API_MAP = [
   { ui: 'Dashboard', action: 'Load stats', controller: 'StatsController', endpoint: '/stats', method: 'GET', sql: 'SELECT', tables: ['job_listings', 'searches'] },
@@ -58,7 +60,7 @@ const UI_PAGES = [...new Set(API_MAP.map(r => r.ui))]
 const CONTROLLERS = [...new Set(API_MAP.map(r => r.controller))]
 
 export default function CodeMap() {
-  const [subTab, setSubTab] = useState('flow')
+  const [subTab, setSubTab] = useState('prompts')
   const [filterPage, setFilterPage] = useState('')
   const [filterMethod, setFilterMethod] = useState('')
   const [filterTable, setFilterTable] = useState('')
@@ -79,10 +81,14 @@ export default function CodeMap() {
       <h2>Code Map</h2>
 
       <div className="codemap-subtabs">
-        <button className={subTab === 'flow' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('flow')}>Data Flow</button>
+        <button className={subTab === 'prompts' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('prompts')}>Prompts Log</button>
+        <button className={subTab === 'codestats' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('codestats')}>Code Stats</button>
+        <button className={subTab === 'flow' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('flow')}>Code Map</button>
         <button className={subTab === 'swagger' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('swagger')}>API Documentation</button>
       </div>
 
+      {subTab === 'prompts' && <PromptsLog />}
+      {subTab === 'codestats' && <CodeStats />}
       {subTab === 'swagger' && <SwaggerDocs />}
 
       {subTab === 'flow' && (
