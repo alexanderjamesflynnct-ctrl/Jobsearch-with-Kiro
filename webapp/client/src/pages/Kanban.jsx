@@ -38,6 +38,11 @@ function Card({ card, onMove, onSave, onDragStart, anonymize }) {
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory]         = useState([])
   const [loadingHist, setLoadingHist] = useState(false)
+  const [timerRunning, setTimerRunning] = useState(false)
+  const [timerStart, setTimerStart]     = useState(null)
+  const [elapsed, setElapsed]           = useState(0)
+  const [timers, setTimers]             = useState([])
+  const timerRef = useRef(null)
 
   const loadNotes = async () => {
     const res = await fetch(`${API}/kanban/${card.id}/notes`)
@@ -89,7 +94,56 @@ function Card({ card, onMove, onSave, onDragStart, anonymize }) {
   const setActive = async (e) => {
     e.stopPropagation()
     await fetch(`${API}/kanban/${card.id}/active`, { method: 'POST' })
+    // Expand the tile and load timers when starring
+    if (!card.is_active) {
+      setExpanded(true)
+      if (!notesLoaded) loadNotes()
+      loadTimers()
+    }
     onSave()
+  }
+
+  const startTimer = (e) => {
+    e.stopPropagation()
+    setTimerRunning(true)
+    setTimerStart(Date.now())
+    setElapsed(0)
+    timerRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - Date.now() + (Date.now() - timerStart)) / 1000))
+    }, 1000)
+    // Use a closure-safe approach
+    const start = Date.now()
+    clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+  }
+
+  const stopTimer = async (e) => {
+    e.stopPropagation()
+    clearInterval(timerRef.current)
+    setTimerRunning(false)
+    const duration = elapsed
+    if (duration > 0) {
+      await fetch(`${API}/kanban/${card.id}/timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration_seconds: duration }),
+      })
+      loadTimers()
+    }
+    setElapsed(0)
+  }
+
+  const loadTimers = async () => {
+    const res = await fetch(`${API}/kanban/${card.id}/timers`)
+    setTimers(await res.json())
+  }
+
+  const formatDuration = (secs) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   const deleteCard = async (e) => {
@@ -190,6 +244,33 @@ function Card({ card, onMove, onSave, onDragStart, anonymize }) {
                       <div className="kanban-history-when">
                         {h.changed_at.replace('T',' ').replace('Z',' UTC')}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stopwatch — only in Searched/Found lane */}
+          {card.status === 'Searched/Found' && (
+            <div className="kanban-stopwatch">
+              <div className="kanban-stopwatch-header">
+                <span className="kanban-move-label">Application Timer</span>
+                <span className="kanban-stopwatch-display">{formatDuration(elapsed)}</span>
+              </div>
+              <div className="kanban-stopwatch-controls">
+                {!timerRunning ? (
+                  <button className="btn-timer-start" onClick={startTimer}>▶ Start</button>
+                ) : (
+                  <button className="btn-timer-stop" onClick={stopTimer}>⏹ Stop & Save</button>
+                )}
+              </div>
+              {timers.length > 0 && (
+                <div className="kanban-timers-list">
+                  {timers.map(t => (
+                    <div key={t.id} className="kanban-timer-entry">
+                      <span className="kanban-timer-duration">{formatDuration(t.duration_seconds)}</span>
+                      <span className="kanban-timer-date">{t.created_at.replace('T',' ').replace('Z',' UTC')}</span>
                     </div>
                   ))}
                 </div>

@@ -225,5 +225,43 @@ public static class KanbanController
             cmd.ExecuteNonQuery();
             return Results.Ok(new { message = "Deleted" });
         });
+
+        // ── POST /kanban/{id}/timer ───────────────────────────────────────────────
+        app.MapPost("/kanban/{id:int}/timer", async (int id, HttpRequest request) =>
+        {
+            var body = await request.ReadFromJsonAsync<Dictionary<string, int>>();
+            var duration = body?.GetValueOrDefault("duration_seconds") ?? 0;
+            if (duration <= 0) return Results.BadRequest(new { error = "duration_seconds must be > 0" });
+
+            var createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            using var conn = open();
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO job_timers (kanban_id, duration_seconds, created_at) VALUES ($id, $dur, $at)";
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.Parameters.AddWithValue("$dur", duration);
+            cmd.Parameters.AddWithValue("$at", createdAt);
+            cmd.ExecuteNonQuery();
+            return Results.Ok(new { message = "Timer saved", duration_seconds = duration });
+        });
+
+        // ── GET /kanban/{id}/timers ───────────────────────────────────────────────
+        app.MapGet("/kanban/{id:int}/timers", (int id) =>
+        {
+            using var conn = open();
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT id, duration_seconds, created_at FROM job_timers WHERE kanban_id = $id ORDER BY created_at DESC";
+            cmd.Parameters.AddWithValue("$id", id);
+            var rows = new List<Dictionary<string, object?>>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                rows.Add(new() {
+                    ["id"] = reader.GetInt32(0),
+                    ["duration_seconds"] = reader.GetInt32(1),
+                    ["created_at"] = reader.GetString(2),
+                });
+            return Results.Ok(rows);
+        });
     }
 }

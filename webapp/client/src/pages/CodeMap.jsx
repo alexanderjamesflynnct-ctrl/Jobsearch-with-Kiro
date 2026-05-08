@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SwaggerDocs from '../components/SwaggerDocs'
 
 const API_MAP = [
   { ui: 'Dashboard', action: 'Load stats', controller: 'StatsController', endpoint: '/stats', method: 'GET', sql: 'SELECT', tables: ['job_listings', 'searches'] },
@@ -57,6 +58,7 @@ const UI_PAGES = [...new Set(API_MAP.map(r => r.ui))]
 const CONTROLLERS = [...new Set(API_MAP.map(r => r.controller))]
 
 export default function CodeMap() {
+  const [subTab, setSubTab] = useState('flow')
   const [filterPage, setFilterPage] = useState('')
   const [filterMethod, setFilterMethod] = useState('')
   const [filterTable, setFilterTable] = useState('')
@@ -75,7 +77,17 @@ export default function CodeMap() {
   return (
     <div className="codemap-page">
       <h2>Code Map</h2>
-      <p className="subtitle">Data flow: UI Action → API Endpoint → SQL Operation → Database Tables</p>
+
+      <div className="codemap-subtabs">
+        <button className={subTab === 'flow' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('flow')}>Data Flow</button>
+        <button className={subTab === 'swagger' ? 'codemap-subtab active' : 'codemap-subtab'} onClick={() => setSubTab('swagger')}>API Documentation</button>
+      </div>
+
+      {subTab === 'swagger' && <SwaggerDocs />}
+
+      {subTab === 'flow' && (
+        <>
+      <p className="subtitle">Data flow: UI Action → Controller → API Endpoint → SQL Operation → Database Tables</p>
 
       <div className="codemap-filters">
         <select value={filterPage} onChange={e => setFilterPage(e.target.value)}>
@@ -125,6 +137,8 @@ export default function CodeMap() {
       <div className="codemap-summary">
         <p>{filtered.length} endpoint(s) shown — {API_MAP.length} total</p>
       </div>
+        </>
+      )}
     </div>
   )
 }

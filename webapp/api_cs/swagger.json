@@ -1,0 +1,234 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Job Search DB API",
+    "description": "REST API for the Job Search application — manages job listings, kanban pipeline, import links, statistics, and settings.",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "http://localhost:8000" }],
+  "tags": [
+    { "name": "Jobs", "description": "Job listings CRUD and filters" },
+    { "name": "Kanban", "description": "Pipeline cards, status, notes, history, timers" },
+    { "name": "Links", "description": "Import link queue management" },
+    { "name": "Stats", "description": "Dashboard statistics and outcomes" },
+    { "name": "Useful Links", "description": "Useful links bookmarks" },
+    { "name": "Settings", "description": "Application settings" },
+    { "name": "Prompts", "description": "Prompts log" },
+    { "name": "Code Stats", "description": "Source code statistics" },
+    { "name": "Adzuna", "description": "Adzuna job fetch" }
+  ],
+  "paths": {
+    "/jobs": {
+      "get": {
+        "tags": ["Jobs"], "summary": "List job listings (paginated, filterable)",
+        "parameters": [
+          { "name": "keywords", "in": "query", "schema": { "type": "string" }, "description": "Search title, company, description" },
+          { "name": "country", "in": "query", "schema": { "type": "string" }, "description": "Filter by country" },
+          { "name": "source", "in": "query", "schema": { "type": "string" }, "description": "Filter by source" },
+          { "name": "job_type", "in": "query", "schema": { "type": "string" }, "description": "Filter by job type" },
+          { "name": "is_remote", "in": "query", "schema": { "type": "string", "enum": ["Remote","Hybrid","On-site"] }, "description": "Filter by work mode" },
+          { "name": "state", "in": "query", "schema": { "type": "string" }, "description": "US state abbreviation" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["searched_at","date_posted","title","company","country","salary","source","state","job_type"] } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc","desc"], "default": "desc" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer", "default": 25 } }
+        ],
+        "responses": { "200": { "description": "Paginated job list", "content": { "application/json": { "schema": { "type": "object", "properties": { "total": { "type": "integer" }, "page": { "type": "integer" }, "per_page": { "type": "integer" }, "jobs": { "type": "array", "items": { "$ref": "#/components/schemas/JobListing" } } } } } } } }
+      }
+    },
+    "/jobs/{id}": {
+      "delete": {
+        "tags": ["Jobs"], "summary": "Delete a job listing and all related data",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/jobs/{id}/country": {
+      "patch": {
+        "tags": ["Jobs"], "summary": "Update country for a job listing",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "country": { "type": "string" } }, "required": ["country"] } } } },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/jobs/manual": {
+      "post": {
+        "tags": ["Jobs"], "summary": "Manually create a job listing",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManualJobInput" } } } },
+        "responses": { "200": { "description": "Job created", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" }, "id": { "type": "string" } } } } } } }
+      }
+    },
+    "/jobs/stale": {
+      "delete": {
+        "tags": ["Jobs"], "summary": "Delete all Searched/Found jobs that have never been moved",
+        "responses": { "200": { "description": "Stale jobs deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" }, "deleted": { "type": "integer" } } } } } } }
+      }
+    },
+    "/countries": { "get": { "tags": ["Jobs"], "summary": "List distinct countries", "responses": { "200": { "description": "Array of country strings" } } } },
+    "/sources": { "get": { "tags": ["Jobs"], "summary": "List distinct sources", "responses": { "200": { "description": "Array of source strings" } } } },
+    "/job-types": { "get": { "tags": ["Jobs"], "summary": "List distinct job types", "responses": { "200": { "description": "Array of job type strings" } } } },
+    "/states": { "get": { "tags": ["Jobs"], "summary": "List distinct US states", "responses": { "200": { "description": "Array of state abbreviations" } } } },
+    "/kanban": {
+      "get": {
+        "tags": ["Kanban"], "summary": "Get all kanban cards with job details (auto-syncs missing)",
+        "responses": { "200": { "description": "Array of kanban cards", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/KanbanCard" } } } } } }
+      }
+    },
+    "/kanban/{id}/status": {
+      "patch": {
+        "tags": ["Kanban"], "summary": "Move card to a new lane",
+        "description": "Logs history, clears active flag if leaving Searched/Found, auto-records Applied if moving to Failed from Searched/Found or Researching.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string", "enum": ["Searched/Found","Researching","Applied","Interviewed","Accepted Job","Failed"] } }, "required": ["status"] } } } },
+        "responses": { "200": { "description": "Status updated" } }
+      }
+    },
+    "/kanban/{id}/fail-type": {
+      "patch": {
+        "tags": ["Kanban"], "summary": "Set failure reason",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "fail_type": { "type": "string", "enum": ["Rejected By Me","Not Heard Back (30d)","Application Error","Rejected by Employer","No Longer Accepting Applications"] } } } } } },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/kanban/{id}/active": {
+      "post": {
+        "tags": ["Kanban"], "summary": "Toggle active/focus state",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Toggled" } }
+      }
+    },
+    "/kanban/{id}/history": {
+      "get": {
+        "tags": ["Kanban"], "summary": "Get lane change history",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Array of history entries", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object", "properties": { "from_status": { "type": "string" }, "to_status": { "type": "string" }, "changed_at": { "type": "string" } } } } } } } }
+      }
+    },
+    "/kanban/{id}/notes": {
+      "get": {
+        "tags": ["Kanban"], "summary": "Get notes for a card",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Array of notes" } }
+      },
+      "post": {
+        "tags": ["Kanban"], "summary": "Add a note",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "note": { "type": "string" } }, "required": ["note"] } } } },
+        "responses": { "200": { "description": "Note saved" } }
+      }
+    },
+    "/kanban/notes/{id}": {
+      "delete": {
+        "tags": ["Kanban"], "summary": "Delete a note",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/kanban/{id}/timer": {
+      "post": {
+        "tags": ["Kanban"], "summary": "Save application timer duration",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "duration_seconds": { "type": "integer" } }, "required": ["duration_seconds"] } } } },
+        "responses": { "200": { "description": "Timer saved" } }
+      }
+    },
+    "/kanban/{id}/timers": {
+      "get": {
+        "tags": ["Kanban"], "summary": "Get timer entries for a card",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Array of timer entries" } }
+      }
+    },
+    "/links": {
+      "get": { "tags": ["Links"], "summary": "Get all import links", "responses": { "200": { "description": "Array of links" } } },
+      "post": {
+        "tags": ["Links"], "summary": "Add a job URL to the import queue",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string" } }, "required": ["url"] } } } },
+        "responses": { "200": { "description": "Link added or already exists" } }
+      }
+    },
+    "/links/{id}": {
+      "delete": { "tags": ["Links"], "summary": "Delete a link", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Deleted" } } }
+    },
+    "/links/process": { "post": { "tags": ["Links"], "summary": "Process all pending links (runs Python importer)", "responses": { "200": { "description": "Processing result with output" } } } },
+    "/links/{id}/reset": { "post": { "tags": ["Links"], "summary": "Reset a link to pending", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Reset" } } } },
+    "/links/reset-all": { "post": { "tags": ["Links"], "summary": "Reset all processed links to pending", "responses": { "200": { "description": "Reset count" } } } },
+    "/links/all": { "delete": { "tags": ["Links"], "summary": "Delete all processed links", "responses": { "200": { "description": "Deleted count" } } } },
+    "/stats": { "get": { "tags": ["Stats"], "summary": "Get overall statistics", "responses": { "200": { "description": "Stats object with totals and by_country" } } } },
+    "/stats/applied-count": { "get": { "tags": ["Stats"], "summary": "Count of jobs ever moved to Applied", "responses": { "200": { "description": "{ count }" } } } },
+    "/stats/applied-today": { "get": { "tags": ["Stats"], "summary": "Count of jobs applied to today (timezone-aware)", "responses": { "200": { "description": "{ count, todayStart, todayEnd }" } } } },
+    "/stats/outcomes": { "get": { "tags": ["Stats"], "summary": "Application outcomes breakdown", "responses": { "200": { "description": "Array of { outcome, count }" } } } },
+    "/useful-links": {
+      "get": { "tags": ["Useful Links"], "summary": "Get all useful links", "responses": { "200": { "description": "Array of links" } } },
+      "post": {
+        "tags": ["Useful Links"], "summary": "Add a useful link",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "description": { "type": "string" }, "url": { "type": "string" } }, "required": ["description", "url"] } } } },
+        "responses": { "200": { "description": "Link added" } }
+      }
+    },
+    "/useful-links/{id}": {
+      "patch": {
+        "tags": ["Useful Links"], "summary": "Edit a useful link",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "description": { "type": "string" }, "url": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Updated" } }
+      },
+      "delete": { "tags": ["Useful Links"], "summary": "Delete a useful link", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Deleted" } } }
+    },
+    "/settings": {
+      "get": { "tags": ["Settings"], "summary": "Get all settings", "responses": { "200": { "description": "Key/value object" } } },
+      "patch": {
+        "tags": ["Settings"], "summary": "Update settings",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "additionalProperties": { "type": "string" } } } } },
+        "responses": { "200": { "description": "Settings saved" } }
+      }
+    },
+    "/prompts": { "get": { "tags": ["Prompts"], "summary": "Get all prompt log entries", "responses": { "200": { "description": "Array of prompts" } } } },
+    "/code-stats": { "get": { "tags": ["Code Stats"], "summary": "Get source code statistics", "responses": { "200": { "description": "Stats with breakdown" } } } },
+    "/code-stats/scan": { "post": { "tags": ["Code Stats"], "summary": "Run code scanner", "responses": { "200": { "description": "Scan result" } } } },
+    "/run-adzuna": {
+      "post": {
+        "tags": ["Adzuna"], "summary": "Fetch jobs from Adzuna API",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "keywords": { "type": "string", "default": "Director of Software Engineering" } } } } } },
+        "responses": { "200": { "description": "Fetch result with output" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "JobListing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }, "search_id": { "type": "integer" }, "searched_at": { "type": "string" },
+          "date_posted": { "type": "string" }, "country": { "type": "string" }, "title": { "type": "string" },
+          "company": { "type": "string" }, "location": { "type": "string" }, "city": { "type": "string" },
+          "state": { "type": "string" }, "job_type": { "type": "string" }, "salary": { "type": "string" },
+          "url": { "type": "string" }, "source": { "type": "string" }, "is_remote": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "ManualJobInput": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" }, "company": { "type": "string" }, "location": { "type": "string" },
+          "city": { "type": "string" }, "state": { "type": "string" }, "country": { "type": "string" },
+          "job_type": { "type": "string" }, "salary": { "type": "string" }, "url": { "type": "string" },
+          "source": { "type": "string", "default": "manual" }, "is_remote": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "KanbanCard": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" }, "job_listing_id": { "type": "string" }, "status": { "type": "string" },
+          "notes": { "type": "string" }, "is_active": { "type": "integer" }, "fail_type": { "type": "string" },
+          "updated_at": { "type": "string" }, "title": { "type": "string" }, "company": { "type": "string" },
+          "location": { "type": "string" }, "state": { "type": "string" }, "country": { "type": "string" },
+          "salary": { "type": "string" }, "job_type": { "type": "string" }, "is_remote": { "type": "string" },
+          "source": { "type": "string" }, "url": { "type": "string" }, "date_posted": { "type": "string" }
+        }
+      }
+    }
+  }
+}

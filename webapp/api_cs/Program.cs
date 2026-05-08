@@ -109,6 +109,14 @@ using (var initConn = Open())
             scanned_at TEXT    NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS job_timers (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            kanban_id        INTEGER NOT NULL REFERENCES kanban_jobs(id),
+            duration_seconds INTEGER NOT NULL,
+            created_at       TEXT    NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_timers_kanban_id ON job_timers(kanban_id);
+
         CREATE TABLE IF NOT EXISTS useful_links (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             description TEXT    NOT NULL,
@@ -121,6 +129,15 @@ using (var initConn = Open())
 
 // Register all controller endpoints
 app.MapJobsEndpoints(Open);
+
+// Serve swagger.json
+app.MapGet("/swagger.json", () =>
+{
+    var swaggerPath = Path.Combine(Directory.GetCurrentDirectory(), "swagger.json");
+    var json = File.ReadAllText(swaggerPath);
+    return Results.Content(json, "application/json");
+});
+
 app.MapKanbanEndpoints(Open);
 app.MapLinksEndpoints(Open);
 app.MapStatsEndpoints(Open);
