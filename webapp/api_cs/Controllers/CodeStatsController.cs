@@ -27,6 +27,24 @@ public static class CodeStatsController
             return Results.Ok(new { total_files = totalFiles, total_lines = totalLines, breakdown = rows });
         });
 
+        // ── GET /code-files ───────────────────────────────────────────────────────
+        app.MapGet("/code-files", () =>
+        {
+            using var conn = open();
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT file_path, file_type, line_count FROM code_files ORDER BY line_count DESC";
+            var rows = new List<Dictionary<string, object>>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                rows.Add(new() {
+                    ["file_path"]  = reader.GetString(0),
+                    ["file_type"]  = reader.GetString(1),
+                    ["line_count"] = reader.GetInt32(2),
+                });
+            return Results.Ok(rows);
+        });
+
         // ── POST /code-stats/scan ────────────────────────────────────────────────
         app.MapPost("/code-stats/scan", async () =>
         {

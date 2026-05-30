@@ -109,6 +109,14 @@ using (var initConn = Open())
             scanned_at TEXT    NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS code_files (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path  TEXT    NOT NULL,
+            file_type  TEXT    NOT NULL,
+            line_count INTEGER NOT NULL DEFAULT 0,
+            scanned_at TEXT    NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS job_timers (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
             kanban_id        INTEGER NOT NULL REFERENCES kanban_jobs(id),
