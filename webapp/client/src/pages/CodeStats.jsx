@@ -61,15 +61,19 @@ function PieChart({ data, valueKey, labelKey, title }) {
 
 export default function CodeStats() {
   const [data, setData]         = useState(null)
+  const [files, setFiles]       = useState([])
   const [loading, setLoading]   = useState(true)
   const [scanning, setScanning] = useState(false)
   const [scanMsg, setScanMsg]   = useState('')
 
   const fetchStats = () => {
-    fetch(`${API}/code-stats`)
-      .then(r => r.json())
-      .then(setData)
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch(`${API}/code-stats`).then(r => r.json()),
+      fetch(`${API}/code-files`).then(r => r.json()),
+    ]).then(([s, f]) => {
+      setData(s)
+      setFiles(f)
+    }).finally(() => setLoading(false))
   }
 
   useEffect(() => { fetchStats() }, [])
@@ -162,6 +166,28 @@ export default function CodeStats() {
           </tbody>
         </table>
       </div>
+
+      {files.length > 0 && (
+        <div className="code-stats-table-section">
+          <h3>All Files by Size ({files.length} files)</h3>
+          <div className="code-files-list">
+            <table className="dash-recent-table">
+              <thead>
+                <tr><th>File</th><th>Type</th><th>Lines</th></tr>
+              </thead>
+              <tbody>
+                {files.map((f, i) => (
+                  <tr key={i}>
+                    <td className="code-file-path"><code>{f.file_path}</code></td>
+                    <td>{f.file_type}</td>
+                    <td>{f.line_count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
