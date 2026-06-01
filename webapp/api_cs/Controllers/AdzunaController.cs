@@ -1,38 +1,56 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
-public static class AdzunaController
+namespace JobSearchAPI.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Tags("Adzuna")]
+public class AdzunaController : ControllerBase
 {
-    public static void MapAdzunaEndpoints(this WebApplication app, Func<SqliteConnection> open)
+    /// <summary>
+    /// Triggers the Adzuna Python scraping script.
+    /// </summary>
+    /// <param name="body">JSON body containing 'keywords'</param>
+    [HttpPost("run")]
+    public async Task<IActionResult> RunAdzuna([FromBody] Dictionary<string, string> body)
     {
-        // ── POST /run-adzuna ──────────────────────────────────────────────────────
-        app.MapPost("/run-adzuna", async (HttpRequest request) =>
+        var keywords = body?.GetValueOrDefault("keywords")?.Trim() ?? "Director of Software Engineering";
+
+        // Logic to find the script path relative to the runtime
+        var scriptPath = Path.GetFullPath(
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "SearchCode", "adzuna_jobs.py"));
+
+        var psi = new ProcessStartInfo
         {
-            var body     = await request.ReadFromJsonAsync<Dictionary<string, string>>();
-            var keywords = body?.GetValueOrDefault("keywords")?.Trim() ?? "Director of Software Engineering";
+            FileName = "py",
+            Arguments = $"-3.14 \"{scriptPath}\" \"{keywords}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            WorkingDirectory = Path.GetFullPath(
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "..")),
+        };
 
-            var scriptPath = Path.GetFullPath(
-                Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "SearchCode", "adzuna_jobs.py"));
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc == null) return StatusCode(500, new { success = false, message = "Failed to start Python process." });
 
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName               = "py",
-                Arguments              = $"-3.14 \"{scriptPath}\" \"{keywords}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                WorkingDirectory       = Path.GetFullPath(
-                    Path.Combine(Directory.GetCurrentDirectory(), "..", "..")),
-            };
-
-            var proc   = System.Diagnostics.Process.Start(psi)!;
             var stdout = await proc.StandardOutput.ReadToEndAsync();
             var stderr = await proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
 
             if (proc.ExitCode != 0)
-                return Results.Json(new { success = false, output = stdout, errors = stderr }, statusCode: 500);
+            {
+                return StatusCode(500, new { success = false, output = stdout, errors = stderr });
+            }
 
-            return Results.Ok(new { success = true, output = stdout, errors = stderr });
-        });
+            return Ok(new { success = true, output = stdout, errors = stderr });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 }

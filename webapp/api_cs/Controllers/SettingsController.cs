@@ -1,39 +1,71 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using JobSearchAPI.Data;
 
-public static class SettingsController
+namespace JobSearchAPI.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Tags("Settings")]
+public class SettingsController : ControllerBase
 {
-    public static void MapSettingsEndpoints(this WebApplication app, Func<SqliteConnection> open)
+    private readonly JobSearchDatabase _db;
+
+    public SettingsController(JobSearchDatabase db)
     {
-        // ── GET /settings ────────────────────────────────────────────────────────
-        app.MapGet("/settings", () =>
-        {
-            using var conn = open();
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT key, value FROM settings";
-            var dict = new Dictionary<string, string>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read()) dict[reader.GetString(0)] = reader.GetString(1);
-            return Results.Ok(dict);
-        });
+        _db = db;
+    }
 
-        // ── PATCH /settings ──────────────────────────────────────────────────────
-        app.MapMethods("/settings", ["PATCH"], async (HttpRequest request) =>
-        {
-            var body = await request.ReadFromJsonAsync<Dictionary<string, string>>();
-            if (body == null) return Results.BadRequest(new { error = "Body required" });
+    /// <summary>
+    /// Retrieves all system settings as a key-value dictionary.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetSettings()
+    {
+        using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
 
-            using var conn = open();
-            conn.Open();
-            foreach (var (key, value) in body)
+        const string sql = "SELECT key, value FROM settings";
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+
+        var dict = new Dictionary<string, string>();
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
             {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = "INSERT INTO settings (key, value) VALUES ($k, $v) ON CONFLICT(key) DO UPDATE SET value = $v";
-                cmd.Parameters.AddWithValue("$k", key);
-                cmd.Parameters.AddWithValue("$v", value);
-                cmd.ExecuteNonQuery();
+                dict[reader.GetString(0)] = reader.GetString(1);
             }
-            return Results.Ok(new { message = "Settings saved" });
-        });
+        }
+
+        return Ok(dict);
+    }
+
+    /// <summary>
+    /// Updates or inserts multiple settings entries.
+    /// </summary>
+    /// <param name="body">Dictionary of settings to upsert.</param>
+    [HttpPatch]
+    public async Task<IActionResult> UpdateSettings([FromBody] Dictionary<string, string> body)
+    {
+        if (body == null || body.Count == 0) 
+            return BadRequest(new { error = "Settings data is required." });
+
+        using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        // Standard SQL Upsert string for scannability
+        const string sql = "INSERT INTO settings (key, value) VALUES (@k, @v) ON CONFLICT(key) DO UPDATE SET value = @v";
+
+        foreach (var (key, value) in body)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.AddWithValue("@k", key);
+            cmd.Parameters.AddWithValue("@v", value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        return Ok(new { message = "Settings saved" });
     }
 }

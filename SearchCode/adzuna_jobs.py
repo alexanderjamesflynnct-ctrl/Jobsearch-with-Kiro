@@ -349,7 +349,7 @@ Examples:
   python adzuna_jobs.py "Director of Software Engineering"
   python adzuna_jobs.py "Data Scientist" --location "London"
   python adzuna_jobs.py "DevOps Engineer" --country UK --results 50
-  python adzuna_jobs.py "ML Engineer" --type permanent --salary-min 80000
+  python adzuna_jobs.py "ML Engineer" --type permanent --salary-min :53000
   python adzuna_jobs.py "Frontend Developer" --sort salary --save jobs.csv
         """,
     )

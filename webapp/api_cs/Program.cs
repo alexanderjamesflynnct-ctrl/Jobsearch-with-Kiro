@@ -1,150 +1,92 @@
-using Microsoft.Data.Sqlite;
+﻿using System.Text;
+using System.IO;
+using System.Text.Json;
+using kuraiaepiai.Source;
+using JobSearchAPI.Data;
+using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── 1. SERVICES ──────────────────────────────────────────────────────────────
+
+builder.Services.AddControllers(); // This is the most important line for the refactor
+builder.Services.AddEndpointsApiExplorer();
+
+// .NET 10 Native OpenAPI 
+builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
+
 builder.Services.AddCors(options =>
-    options.AddDefaultPolicy(p =>
-        p.WithOrigins("http://localhost:5173")
-         .AllowAnyMethod()
-         .AllowAnyHeader()));
-
-var app = builder.Build();
-app.UseCors();
-
-// Resolve DB path relative to this source file's location
-var dbPath = Path.GetFullPath(
-    Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "SearchCode", "jobs.db"));
-
-SqliteConnection Open() => new($"Data Source={dbPath}");
-
-// Ensure all tables exist on every startup — safe to run repeatedly
-using (var initConn = Open())
 {
-    initConn.Open();
-    using var initCmd = initConn.CreateCommand();
-    initCmd.CommandText = """
-        CREATE TABLE IF NOT EXISTS searches (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            searched_at TEXT    NOT NULL,
-            keywords    TEXT    NOT NULL,
-            location    TEXT    NOT NULL DEFAULT '',
-            country     TEXT
-        );
-        CREATE TABLE IF NOT EXISTS job_listings (
-            id          TEXT    PRIMARY KEY,
-            search_id   INTEGER NOT NULL REFERENCES searches(id),
-            searched_at TEXT    NOT NULL,
-            date_posted TEXT,
-            country     TEXT,
-            title       TEXT,
-            company     TEXT,
-            location    TEXT,
-            city        TEXT,
-            state       TEXT,
-            job_type    TEXT,
-            salary      TEXT,
-            url         TEXT,
-            source      TEXT,
-            is_remote   TEXT,
-            description TEXT
-        );
-        CREATE TABLE IF NOT EXISTS job_links (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            url           TEXT    NOT NULL UNIQUE,
-            source        TEXT    NOT NULL DEFAULT 'unknown',
-            added_at      TEXT    NOT NULL,
-            processed     INTEGER NOT NULL DEFAULT 0,
-            processed_at  TEXT,
-            error_message TEXT
-        );
-        CREATE TABLE IF NOT EXISTS kanban_jobs (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            job_listing_id TEXT    NOT NULL UNIQUE REFERENCES job_listings(id),
-            status         TEXT    NOT NULL DEFAULT 'Searched/Found',
-            notes          TEXT,
-            is_active      INTEGER NOT NULL DEFAULT 0,
-            fail_type      TEXT,
-            updated_at     TEXT    NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_kanban_status ON kanban_jobs(status);
-
-        CREATE TABLE IF NOT EXISTS kanban_history (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            kanban_id   INTEGER NOT NULL REFERENCES kanban_jobs(id),
-            from_status TEXT,
-            to_status   TEXT    NOT NULL,
-            changed_at  TEXT    NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_history_kanban_id ON kanban_history(kanban_id);
-
-        CREATE TABLE IF NOT EXISTS kanban_notes (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            kanban_id  INTEGER NOT NULL REFERENCES kanban_jobs(id),
-            note       TEXT    NOT NULL,
-            created_at TEXT    NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_notes_kanban_id ON kanban_notes(kanban_id);
-
-        CREATE TABLE IF NOT EXISTS settings (
-            key   TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        INSERT OR IGNORE INTO settings (key, value) VALUES ('timezone', 'America/New_York');
-        INSERT OR IGNORE INTO settings (key, value) VALUES ('search_keywords', 'Director of Software Engineering');
-
-        CREATE TABLE IF NOT EXISTS prompts_log (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            sequence INTEGER NOT NULL,
-            date     TEXT    NOT NULL,
-            prompt   TEXT    NOT NULL,
-            category TEXT    NOT NULL DEFAULT '',
-            response TEXT    NOT NULL DEFAULT ''
-        );
-
-        CREATE TABLE IF NOT EXISTS code_stats (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            file_type  TEXT    NOT NULL,
-            file_count INTEGER NOT NULL DEFAULT 0,
-            line_count INTEGER NOT NULL DEFAULT 0,
-            scanned_at TEXT    NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS job_timers (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            kanban_id        INTEGER NOT NULL REFERENCES kanban_jobs(id),
-            duration_seconds INTEGER NOT NULL,
-            created_at       TEXT    NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_timers_kanban_id ON job_timers(kanban_id);
-
-        CREATE TABLE IF NOT EXISTS useful_links (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            description TEXT    NOT NULL,
-            url         TEXT    NOT NULL,
-            added_at    TEXT    NOT NULL
-        );
-        """;
-    initCmd.ExecuteNonQuery();
-}
-
-// Register all controller endpoints
-app.MapJobsEndpoints(Open);
-
-// Serve swagger.json
-app.MapGet("/swagger.json", () =>
-{
-    var swaggerPath = Path.Combine(Directory.GetCurrentDirectory(), "swagger.json");
-    var json = File.ReadAllText(swaggerPath);
-    return Results.Content(json, "application/json");
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+    
+    options.AddPolicy("KuraiaepiaiPolicy", p => 
+        p.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod());
 });
 
-app.MapKanbanEndpoints(Open);
-app.MapLinksEndpoints(Open);
-app.MapStatsEndpoints(Open);
-app.MapUsefulLinksEndpoints(Open);
-app.MapSettingsEndpoints(Open);
-app.MapPromptsEndpoints(Open);
-app.MapCodeStatsEndpoints(Open);
-app.MapAdzunaEndpoints(Open);
+// Register our new Database Service
+builder.Services.AddSingleton<JobSearchDatabase>();
 
-app.Run("http://localhost:8000");
+var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// ── 2. DATABASE INITIALIZATION ───────────────────────────────────────────────
+
+var db = app.Services.GetRequiredService<JobSearchDatabase>();
+db.Initialize();
+
+// ── 3. PIPELINE ──────────────────────────────────────────────────────────────
+
+app.UseCors();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/openapi/v1.json", "Job Search API v1");
+        c.RoutePrefix = "swagger";
+    });
+}
+
+app.UseHttpsRedirection();
+
+// This replaces all the MapJobsEndpoints, MapKanbanEndpoints, etc.
+// It automatically finds all the classes in the /Controllers folder.
+app.MapControllers(); 
+
+
+// <clearapi-start>
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("KuraiaepiaiPolicy");
+    app.MapGet("/clearapi/push", async (HttpContext context) => {
+        try {
+            string jsonContent = "";
+            var swaggerProvider = context.RequestServices.GetService<ISwaggerProvider>();
+            if (swaggerProvider != null) {
+                var doc = swaggerProvider.GetSwagger("v1", null, "/");
+                doc.Servers = new List<OpenApiServer> { new OpenApiServer { Url = $"{context.Request.Scheme}://{context.Request.Host}" } };
+                using var sw = new StringWriter();
+                doc.SerializeAsV3(new OpenApiJsonWriter(sw));
+                jsonContent = sw.ToString();
+            } else {
+                using var client = new HttpClient();
+                jsonContent = await client.GetStringAsync($"{context.Request.Scheme}://{context.Request.Host}/openapi/v1.json");
+            }
+            await File.WriteAllTextAsync("swagger.json", jsonContent, Encoding.UTF8);
+            var report = await (new KuraiaepiaiReporter()).GenerateReport(Directory.GetCurrentDirectory(), jsonContent);
+            using var client2 = new HttpClient();
+            var response = await client2.PostAsJsonAsync("http://localhost:8000/api/collect", report);
+            return response.IsSuccessStatusCode ? Results.Ok("Synced!") : Results.BadRequest("Sync failed.");
+        } catch (Exception ex) { return Results.Problem(ex.Message); }
+    });
+}
+// <clearapi-end>
+app.Run("http://localhost:5300");

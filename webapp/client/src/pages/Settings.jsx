@@ -1,33 +1,44 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
-const API = 'http://localhost:8000'
+// Updated to the new Controller base path
+const API = "http://localhost:5300/api/Settings";
 
-const TIMEZONES = Intl.supportedValuesOf('timeZone')
+const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
 export default function Settings() {
-  const [settings, setSettings] = useState({})
-  const [saving, setSaving]     = useState(false)
-  const [status, setStatus]     = useState('')
+  const [settings, setSettings] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/settings`).then(r => r.json()).then(setSettings)
-  }, [])
+    // GET /api/Settings
+    fetch(API)
+      .then((r) => r.json())
+      .then(setSettings)
+      .catch((err) => console.error("Error loading settings:", err));
+  }, []);
 
-  const selected = settings.timezone || 'America/New_York'
-  const keywords = settings.search_keywords || ''
+  const selected = settings.timezone || "America/New_York";
+  const keywords = settings.search_keywords || "";
 
   const save = async (key, value) => {
-    setSaving(true)
-    setStatus('')
-    await fetch(`${API}/settings`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [key]: value }),
-    })
-    setSettings(s => ({ ...s, [key]: value }))
-    setSaving(false)
-    setStatus(`Saved: ${key} = ${value}`)
-  }
+    setSaving(true);
+    setStatus("");
+    try {
+      // PATCH /api/Settings
+      await fetch(API, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      setSettings((s) => ({ ...s, [key]: value }));
+      setStatus(`Saved: ${key} = ${value}`);
+    } catch (err) {
+      setStatus("Error saving settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="settings-page">
@@ -42,8 +53,10 @@ export default function Settings() {
           className="settings-input"
           type="text"
           value={keywords}
-          onChange={e => setSettings(s => ({ ...s, search_keywords: e.target.value }))}
-          onBlur={e => save('search_keywords', e.target.value)}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, search_keywords: e.target.value }))
+          }
+          onBlur={(e) => save("search_keywords", e.target.value)}
           disabled={saving}
           placeholder="e.g. Director of Software Engineering"
         />
@@ -58,16 +71,22 @@ export default function Settings() {
         <select
           className="settings-tz-select"
           value={selected}
-          onChange={e => save('timezone', e.target.value)}
+          onChange={(e) => save("timezone", e.target.value)}
           disabled={saving}
         >
-          {TIMEZONES.map(tz => (
-            <option key={tz} value={tz}>{tz}</option>
+          {TIMEZONES.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz}
+            </option>
           ))}
         </select>
       </div>
 
-      {status && <div className="msg success" style={{marginTop:'10px'}}>{status}</div>}
+      {status && (
+        <div className="msg success" style={{ marginTop: "10px" }}>
+          {status}
+        </div>
+      )}
     </div>
-  )
+  );
 }

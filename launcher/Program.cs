@@ -49,7 +49,7 @@ Console.WriteLine($"      UI started (PID: {uiProcess.Id})");
 
 Console.WriteLine();
 Console.WriteLine("Both services are running.");
-Console.WriteLine("  API: http://localhost:8000");
+Console.WriteLine("  API: http://localhost:5300");
 Console.WriteLine("  UI:  http://localhost:5173");
 Console.WriteLine();
 Console.WriteLine("Press ENTER to stop both and exit...");
