@@ -232,6 +232,28 @@ export default function CodeStats() {
           </tbody>
         </table>
       </div>
+
+      {files.length > 0 && (
+        <div className="code-stats-table-section">
+          <h3>All Files by Size ({files.length} files)</h3>
+          <div className="code-files-list">
+            <table className="dash-recent-table">
+              <thead>
+                <tr><th>File</th><th>Type</th><th>Lines</th></tr>
+              </thead>
+              <tbody>
+                {files.map((f, i) => (
+                  <tr key={i}>
+                    <td className="code-file-path"><code>{f.file_path}</code></td>
+                    <td>{f.file_type}</td>
+                    <td>{f.line_count.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

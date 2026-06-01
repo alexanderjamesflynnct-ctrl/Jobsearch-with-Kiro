@@ -35,6 +35,8 @@ EXT_MAP = {
 
 def scan():
     stats = defaultdict(lambda: {'files': 0, 'lines': 0})
+    global all_files
+    all_files = []
 
     for root, dirs, files in os.walk(WORKSPACE):
         # Skip ignored directories
@@ -57,6 +59,12 @@ def scan():
             stats[file_type]['files'] += 1
             stats[file_type]['lines'] += lines
 
+            # Store relative path
+            rel_path = str(fpath.relative_to(WORKSPACE)).replace('\\', '/')
+            all_files.append({'path': rel_path, 'type': file_type, 'lines': lines})
+
+    # Sort files by line count descending
+    all_files.sort(key=lambda x: -x['lines'])
     return stats
 
 
@@ -71,9 +79,19 @@ def save(stats):
             scanned_at TEXT    NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS code_files (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path  TEXT    NOT NULL,
+            file_type  TEXT    NOT NULL,
+            line_count INTEGER NOT NULL DEFAULT 0,
+            scanned_at TEXT    NOT NULL
+        )
+    """)
 
     # Clear previous scan
     conn.execute("DELETE FROM code_stats")
+    conn.execute("DELETE FROM code_files")
 
     scanned_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     total_files = 0
@@ -88,11 +106,18 @@ def save(stats):
         total_lines += counts['lines']
         print(f"  {file_type:<20} {counts['files']:>4} files  {counts['lines']:>6} lines")
 
+    # Save individual files
+    for file_info in all_files:
+        conn.execute(
+            "INSERT INTO code_files (file_path, file_type, line_count, scanned_at) VALUES (?,?,?,?)",
+            (file_info['path'], file_info['type'], file_info['lines'], scanned_at)
+        )
+
     conn.commit()
     conn.close()
 
     print(f"\n  {'TOTAL':<20} {total_files:>4} files  {total_lines:>6} lines")
-    print(f"\nSaved to code_stats table.")
+    print(f"\nSaved to code_stats and code_files tables.")
 
 
 if __name__ == "__main__":

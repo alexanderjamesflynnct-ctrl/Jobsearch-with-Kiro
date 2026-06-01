@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.IO;
 using System.Text.Json;
 using kuraiaepiai.Source;

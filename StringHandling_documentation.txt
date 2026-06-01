@@ -1,0 +1,174 @@
+String Management System — Implementation Guide
+1. Database Table (SQLite)
+-- Main strings table
+CREATE TABLE IF NOT EXISTS app_strings (
+    application TEXT NOT NULL DEFAULT 'YourAppName',
+    page        TEXT NOT NULL,
+    unique_id   TEXT NOT NULL,
+    language    TEXT NOT NULL DEFAULT 'en',
+    value       TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (application, page, unique_id, language)
+);
+
+-- Audit trail
+CREATE TABLE IF NOT EXISTS app_strings_audit (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    application   TEXT NOT NULL,
+    page          TEXT NOT NULL,
+    unique_id     TEXT NOT NULL,
+    language      TEXT NOT NULL,
+    old_value     TEXT NOT NULL DEFAULT '',
+    new_value     TEXT NOT NULL DEFAULT '',
+    changed_by_ip TEXT NOT NULL DEFAULT '',
+    changed_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+2. C# API — Model
+// Models/AppString.cs
+public class AppString
+{
+    public string Application { get; init; } = string.Empty;
+    public string Page        { get; init; } = string.Empty;
+    public string UniqueId    { get; init; } = string.Empty;
+    public string Language    { get; init; } = "en";
+    public string Value       { get; init; } = string.Empty;
+}
+
+public class UpsertStringRequest
+{
+    public string Value { get; init; } = string.Empty;
+}
+
+public class StringAuditEntry
+{
+    public int    Id          { get; init; }
+    public string Page        { get; init; } = string.Empty;
+    public string UniqueId    { get; init; } = string.Empty;
+    public string Language    { get; init; } = string.Empty;
+    public string OldValue    { get; init; } = string.Empty;
+    public string NewValue    { get; init; } = string.Empty;
+    public string ChangedByIp { get; init; } = string.Empty;
+    public string ChangedAt   { get; init; } = string.Empty;
+}
+3. C# API — Endpoints (Minimal API)
+// GET all strings
+app.MapGet("/api/strings", async (Db db, string lang = "en") =>
+    Results.Ok(await db.GetAllStringsAsync(lang)));
+
+// GET audit log
+app.MapGet("/api/strings/audit", async (Db db) =>
+    Results.Ok(await db.GetStringAuditLogAsync()));
+
+// PUT update one string (with IP audit)
+app.MapPut("/api/strings/{page}/{uniqueId}", async (HttpContext ctx, Db db, string page, string uniqueId, UpsertStringRequest req, string lang = "en") =>
+{
+    var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    await db.UpsertStringAsync(page, uniqueId, req.Value, lang, ip);
+    return Results.Ok(new { page, uniqueId, lang, value = req.Value });
+});
+4. C# API — Database Methods
+public async Task<IReadOnlyList<AppString>> GetAllStringsAsync(string language) { /* SELECT WHERE language = @lang */ }
+public async Task<IReadOnlyList<StringAuditEntry>> GetStringAuditLogAsync() { /* SELECT FROM audit ORDER BY changed_at DESC */ }
+public async Task UpsertStringAsync(string page, string uniqueId, string value, string language, string ipAddress)
+{
+    // 1. SELECT old value
+    // 2. INSERT OR UPDATE the string
+    // 3. If value changed, INSERT into audit table with old/new/ip
+}
+public async Task SeedStringsAsync(IReadOnlyList<AppString> strings)
+{
+    // INSERT OR IGNORE — only seeds if not already present
+}
+5. Seed Data Pattern
+// Data/DefaultStrings.cs
+public static class DefaultStrings
+{
+    public static readonly IReadOnlyList<AppString> All = new List<AppString>
+    {
+        S("Header", "app_name", "My App"),
+        S("Header", "tagline", "Your tagline here"),
+        S("Sidebar", "node_home", "Home"),
+        // ... all static strings
+    };
+
+    private static AppString S(string page, string uid, string value) => new()
+    {
+        Application = "YourAppName", Page = page, UniqueId = uid, Language = "en", Value = value,
+    };
+}
+
+// In Program.cs startup:
+await db.EnsureAppStringsTableAsync();
+await db.SeedStringsAsync(DefaultStrings.All);
+6. React Hook — 
+useAppStrings.ts
+import { useEffect, useState } from 'react'
+
+export interface AppString {
+  application: string; page: string; uniqueId: string; language: string; value: string
+}
+
+const API_URL = 'http://localhost:YOUR_PORT/api/strings'
+let cachedStrings: Map<string, string> | null = null
+let version = 0
+const listeners = new Set<() => void>()
+
+const notifyListeners = () => { version++; listeners.forEach(fn => fn()) }
+
+const loadStrings = async () => {
+  const res = await fetch(API_URL)
+  if (!res.ok) return
+  const data = await res.json() as AppString[]
+  cachedStrings = new Map(data.map(s => [`${s.page}.${s.uniqueId}`, s.value]))
+  notifyListeners()
+}
+
+export const getString = (page: string, uniqueId: string, fallback = ''): string =>
+  cachedStrings?.get(`${page}.${uniqueId}`) ?? fallback
+
+export const useAppStrings = () => {
+  const [, setVer] = useState(version)
+  useEffect(() => {
+    if (!cachedStrings) loadStrings()
+    const listener = () => setVer(v => v + 1)
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+  }, [])
+  return { ready: cachedStrings !== null, s: getString }
+}
+
+export const reloadStrings = async () => { cachedStrings = null; await loadStrings() }
+7. Usage in Components
+import { useAppStrings } from '../hooks/useAppStrings'
+
+const MyPage = () => {
+  const { s } = useAppStrings()
+  return <h1>{s('MyPage', 'page_title', 'Fallback Title')}</h1>
+}
+8. For Navigation Nodes (display vs routing key)
+// types.ts
+interface TreeNode {
+  id: string;
+  label: string;       // routing key (never changes)
+  stringKey?: string;  // maps to app_strings unique_id
+}
+
+// In TreeMenu render:
+const { s } = useAppStrings()
+const displayLabel = node.stringKey ? s('Sidebar', node.stringKey, node.label) : node.label
+9. String Editor Page
+A table/grid UI that:
+
+Fetches GET /api/strings
+Displays Page | String ID | Language | Value
+Inline edit on click → PUT /api/strings/{page}/{uniqueId}
+Calls reloadStrings() after save to update all components live
+10. String Change Log Page
+A scrollable table that fetches GET /api/strings/audit and displays: Date, Page, String ID, Old Value (red strikethrough), New Value (green), IP Address.
+
+Key principles:
+
+Strings are keyed by (page, unique_id, language) — page groups them logically
+INSERT OR IGNORE seeding means manual edits are never overwritten on restart
+The React hook uses pub/sub so all components re-render when strings change
+Navigation labels use stringKey for display but keep label as the immutable routing key
+Audit captures IP + old/new values only when the value actually changes
