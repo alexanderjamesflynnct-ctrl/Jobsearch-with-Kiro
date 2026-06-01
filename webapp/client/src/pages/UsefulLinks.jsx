@@ -1,70 +1,87 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 
-const API = 'http://localhost:8000'
+// The base URL remains the same, but the routes change to the Controller pattern
+const API = "http://localhost:5300/api/UsefulLinks";
 
 export default function UsefulLinks() {
-  const [links, setLinks]       = useState([])
-  const [url, setUrl]           = useState('')
-  const [desc, setDesc]         = useState('')
-  const [error, setError]       = useState('')
-  const [status, setStatus]     = useState('')
-  const [editId, setEditId]     = useState(null)
-  const [editUrl, setEditUrl]   = useState('')
-  const [editDesc, setEditDesc] = useState('')
+  const [links, setLinks] = useState([]);
+  const [url, setUrl] = useState("");
+  const [desc, setDesc] = useState("");
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editUrl, setEditUrl] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   const fetchLinks = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/useful-links`)
-      setLinks(await res.json())
+      // GET /api/UsefulLinks
+      const res = await fetch(`${API}`);
+      setLinks(await res.json());
     } catch {
-      setError('Could not reach API.')
+      setError("Could not reach API.");
     }
-  }, [])
+  }, []);
 
-  useEffect(() => { fetchLinks() }, [fetchLinks])
+  useEffect(() => {
+    fetchLinks();
+  }, [fetchLinks]);
 
   const addLink = async () => {
-    setError(''); setStatus('')
-    if (!url.trim())  return setError('URL is required.')
-    if (!desc.trim()) return setError('Description is required.')
+    setError("");
+    setStatus("");
+    if (!url.trim()) return setError("URL is required.");
+    if (!desc.trim()) return setError("Description is required.");
 
-    const res  = await fetch(`${API}/useful-links`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    // POST /api/UsefulLinks
+    const res = await fetch(`${API}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: url.trim(), description: desc.trim() }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setError(data.error || 'Failed to add.'); return }
-    setStatus('Link added.')
-    setUrl(''); setDesc('')
-    fetchLinks()
-  }
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Failed to add.");
+      return;
+    }
+
+    setStatus("Link added.");
+    setUrl("");
+    setDesc("");
+    fetchLinks();
+  };
 
   const deleteLink = async (id) => {
-    await fetch(`${API}/useful-links/${id}`, { method: 'DELETE' })
-    fetchLinks()
-  }
+    // DELETE /api/UsefulLinks/{id}
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    fetchLinks();
+  };
 
   const startEdit = (link) => {
-    setEditId(link.id)
-    setEditUrl(link.url)
-    setEditDesc(link.description)
-  }
+    setEditId(link.id);
+    setEditUrl(link.url);
+    setEditDesc(link.description);
+  };
 
   const saveEdit = async () => {
-    await fetch(`${API}/useful-links/${editId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+    // PATCH /api/UsefulLinks/{id}
+    await fetch(`${API}/${editId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: editUrl, description: editDesc }),
-    })
-    setEditId(null)
-    fetchLinks()
-  }
+    });
+    setEditId(null);
+    fetchLinks();
+  };
 
   return (
     <div className="useful-links-page">
       <h2>Useful Links</h2>
-      <p className="subtitle">Store links to job boards, salary tools, company research pages, and anything else useful.</p>
+      <p className="subtitle">
+        Store links to job boards, salary tools, company research pages, and
+        anything else useful.
+      </p>
 
       {/* Add form */}
       <div className="ul-form">
@@ -72,20 +89,22 @@ export default function UsefulLinks() {
           type="text"
           placeholder="Description (e.g. LinkedIn Salary Insights)"
           value={desc}
-          onChange={e => setDesc(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addLink()}
+          onChange={(e) => setDesc(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addLink()}
         />
         <input
           type="text"
           placeholder="https://..."
           value={url}
-          onChange={e => setUrl(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addLink()}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addLink()}
         />
-        <button className="btn-primary" onClick={addLink}>Add Link</button>
+        <button className="btn-primary" onClick={addLink}>
+          Add Link
+        </button>
       </div>
 
-      {error  && <div className="msg error">{error}</div>}
+      {error && <div className="msg error">{error}</div>}
       {status && <div className="msg success">{status}</div>}
 
       {/* Table */}
@@ -103,7 +122,7 @@ export default function UsefulLinks() {
             </tr>
           </thead>
           <tbody>
-            {links.map(link => (
+            {links.map((link) => (
               <tr key={link.id}>
                 <td className="ul-id">{link.id}</td>
                 {editId === link.id ? (
@@ -112,32 +131,56 @@ export default function UsefulLinks() {
                       <input
                         className="ul-edit-input"
                         value={editDesc}
-                        onChange={e => setEditDesc(e.target.value)}
+                        onChange={(e) => setEditDesc(e.target.value)}
                       />
                     </td>
                     <td>
                       <input
                         className="ul-edit-input"
                         value={editUrl}
-                        onChange={e => setEditUrl(e.target.value)}
+                        onChange={(e) => setEditUrl(e.target.value)}
                       />
                     </td>
-                    <td className="date">{link.added_at?.replace('T',' ').replace('Z','')}</td>
+                    <td className="date">
+                      {link.added_at?.replace("T", " ").replace("Z", "")}
+                    </td>
                     <td className="action-cell">
-                      <button className="btn-save-sm" onClick={saveEdit}>Save</button>
-                      <button className="btn-cancel-sm" onClick={() => setEditId(null)}>✕</button>
+                      <button className="btn-save-sm" onClick={saveEdit}>
+                        Save
+                      </button>
+                      <button
+                        className="btn-cancel-sm"
+                        onClick={() => setEditId(null)}
+                      >
+                        ✕
+                      </button>
                     </td>
                   </>
                 ) : (
                   <>
                     <td className="ul-desc">{link.description}</td>
                     <td className="ul-url">
-                      <a href={link.url} target="_blank" rel="noreferrer">{link.url}</a>
+                      <a href={link.url} target="_blank" rel="noreferrer">
+                        {link.url}
+                      </a>
                     </td>
-                    <td className="date">{link.added_at?.replace('T',' ').replace('Z','')}</td>
+                    <td className="date">
+                      {link.added_at?.replace("T", " ").replace("Z", "")}
+                    </td>
                     <td className="action-cell">
-                      <button className="btn-reset-sm" onClick={() => startEdit(link)} title="Edit">✎</button>
-                      <button className="btn-delete"   onClick={() => deleteLink(link.id)}>✕</button>
+                      <button
+                        className="btn-reset-sm"
+                        onClick={() => startEdit(link)}
+                        title="Edit"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={() => deleteLink(link.id)}
+                      >
+                        ✕
+                      </button>
                     </td>
                   </>
                 )}
@@ -147,5 +190,5 @@ export default function UsefulLinks() {
         </table>
       )}
     </div>
-  )
+  );
 }

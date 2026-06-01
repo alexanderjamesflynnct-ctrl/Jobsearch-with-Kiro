@@ -1,0 +1,8 @@
+{
+  "BusinessOwner": "Ruger",
+  "BusinessDept": "Job Search",
+  "ITOwner": "Baltar",
+  "ITDept": "Galactic IT Developers",
+  "SystemName": "JobSearch",
+  "APIName": "JobSearchAPI"
+}

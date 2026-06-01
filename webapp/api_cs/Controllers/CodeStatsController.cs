@@ -1,76 +1,101 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using JobSearchAPI.Data;
+using System.Diagnostics;
 
-public static class CodeStatsController
+namespace JobSearchAPI.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Tags("CodeStats")]
+public class CodeStatsController : ControllerBase
 {
-    public static void MapCodeStatsEndpoints(this WebApplication app, Func<SqliteConnection> open)
+    private readonly JobSearchDatabase _db;
+
+    public CodeStatsController(JobSearchDatabase db)
     {
-        // ── GET /code-stats ───────────────────────────────────────────────────────
-        app.MapGet("/code-stats", () =>
+        _db = db;
+    }
+
+    /// <summary>
+    /// Retrieves file and line count statistics from the database.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetCodeStats()
+    {
+        using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        // Standard SQL string for scannability
+        const string sql = "SELECT file_type, file_count, line_count, scanned_at FROM code_stats ORDER BY line_count DESC";
+        
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+
+        var rows = new List<Dictionary<string, object>>();
+        using (var reader = await cmd.ExecuteReaderAsync())
         {
-            using var conn = open();
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT file_type, file_count, line_count, scanned_at FROM code_stats ORDER BY line_count DESC";
-            var rows = new List<Dictionary<string, object>>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-                rows.Add(new() {
-                    ["file_type"]  = reader.GetString(0),
+            while (await reader.ReadAsync())
+            {
+                rows.Add(new Dictionary<string, object>
+                {
+                    ["file_type"] = reader.GetString(0),
                     ["file_count"] = reader.GetInt32(1),
                     ["line_count"] = reader.GetInt32(2),
                     ["scanned_at"] = reader.GetString(3),
                 });
+            }
+        }
 
-            var totalFiles = rows.Sum(r => (int)r["file_count"]);
-            var totalLines = rows.Sum(r => (int)r["line_count"]);
+        var totalFiles = rows.Sum(r => (int)r["file_count"]);
+        var totalLines = rows.Sum(r => (int)r["line_count"]);
 
-            return Results.Ok(new { total_files = totalFiles, total_lines = totalLines, breakdown = rows });
+        return Ok(new { 
+            total_files = totalFiles, 
+            total_lines = totalLines, 
+            breakdown = rows 
         });
+    }
 
-        // ── GET /code-files ───────────────────────────────────────────────────────
-        app.MapGet("/code-files", () =>
+    /// <summary>
+    /// Triggers the external Python script to re-scan the repository for stats.
+    /// </summary>
+    [HttpPost("scan")]
+    public async Task<IActionResult> TriggerScan()
+    {
+        var scriptPath = Path.GetFullPath(
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "SearchCode", "scan_code_stats.py"));
+
+        var psi = new ProcessStartInfo
         {
-            using var conn = open();
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT file_path, file_type, line_count FROM code_files ORDER BY line_count DESC";
-            var rows = new List<Dictionary<string, object>>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-                rows.Add(new() {
-                    ["file_path"]  = reader.GetString(0),
-                    ["file_type"]  = reader.GetString(1),
-                    ["line_count"] = reader.GetInt32(2),
-                });
-            return Results.Ok(rows);
-        });
+            FileName = "py",
+            Arguments = $"-3.14 \"{scriptPath}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            WorkingDirectory = Path.GetFullPath(
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "..")),
+        };
 
-        // ── POST /code-stats/scan ────────────────────────────────────────────────
-        app.MapPost("/code-stats/scan", async () =>
+        try
         {
-            var scriptPath = Path.GetFullPath(
-                Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "SearchCode", "scan_code_stats.py"));
+            using var proc = Process.Start(psi);
+            if (proc == null) return StatusCode(500, new { success = false, message = "Failed to start scan process." });
 
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName               = "py",
-                Arguments              = $"-3.14 \"{scriptPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                WorkingDirectory       = Path.GetFullPath(
-                    Path.Combine(Directory.GetCurrentDirectory(), "..", "..")),
-            };
-
-            var proc   = System.Diagnostics.Process.Start(psi)!;
             var stdout = await proc.StandardOutput.ReadToEndAsync();
             var stderr = await proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
 
             if (proc.ExitCode != 0)
-                return Results.Json(new { success = false, output = stdout, errors = stderr }, statusCode: 500);
+            {
+                return StatusCode(500, new { success = false, output = stdout, errors = stderr });
+            }
 
-            return Results.Ok(new { success = true, output = stdout });
-        });
+            return Ok(new { success = true, output = stdout });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 }
