@@ -83,6 +83,14 @@ public class JobsController : ControllerBase
         histCmd.Parameters.AddWithValue("$id", id);
         histCmd.ExecuteNonQuery();
 
+        // job_timers also FK-references kanban_jobs(id) — must be cleared before deleting the
+        // kanban row, or the kanban delete violates the FK. This is why deleting a tile only failed
+        // AFTER the timer had been used (an unused tile has no job_timers rows).
+        using var timersCmd = conn.CreateCommand();
+        timersCmd.CommandText = "DELETE FROM job_timers WHERE kanban_id IN (SELECT id FROM kanban_jobs WHERE job_listing_id = $id)";
+        timersCmd.Parameters.AddWithValue("$id", id);
+        timersCmd.ExecuteNonQuery();
+
         using var kanbanCmd = conn.CreateCommand();
         kanbanCmd.CommandText = "DELETE FROM kanban_jobs WHERE job_listing_id = $id";
         kanbanCmd.Parameters.AddWithValue("$id", id);
@@ -207,6 +215,18 @@ public class JobsController : ControllerBase
             n.CommandText = "DELETE FROM kanban_notes WHERE kanban_id = $kid";
             n.Parameters.AddWithValue("$kid", kanbanId);
             n.ExecuteNonQuery();
+
+            // Clear ALL children that FK-reference kanban_jobs(id) before deleting the kanban row:
+            // kanban_history and job_timers (same FK hazard as the single-tile delete above).
+            using var h = conn.CreateCommand();
+            h.CommandText = "DELETE FROM kanban_history WHERE kanban_id = $kid";
+            h.Parameters.AddWithValue("$kid", kanbanId);
+            h.ExecuteNonQuery();
+
+            using var t = conn.CreateCommand();
+            t.CommandText = "DELETE FROM job_timers WHERE kanban_id = $kid";
+            t.Parameters.AddWithValue("$kid", kanbanId);
+            t.ExecuteNonQuery();
 
             using var k = conn.CreateCommand();
             k.CommandText = "DELETE FROM kanban_jobs WHERE id = $kid";
